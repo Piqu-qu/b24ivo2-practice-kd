@@ -1,6 +1,4 @@
-# docker-compose.yml (полностью закрывает Задание 1)
 name: compose-counter
-
 services:
   web:
     build: .
@@ -13,28 +11,27 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-
-    # ---------- Безопасность и ограничения ----------
     read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     ulimits:
-      nofile:
-        soft: 1048576
-        hard: 1048576
+      nofile: 1048576
     deploy:
       resources:
         limits:
           cpus: "0.5"
           memory: 128M
-        reservations:
-          cpus: "0.25"
-          memory: 64M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
 
   redis:
-    image: redis:7.2-alpine          # зафиксированная версия
+    image: redis:7.2-alpine
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
