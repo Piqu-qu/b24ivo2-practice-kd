@@ -1,60 +1,39 @@
-# docker-compose.yml (полностью закрывает Задание 1)
-name: compose-counter
+# ========== Stage 1: Builder ==========
+FROM python:3.11.9-slim AS builder
 
-services:
-  web:
-    build: .
-    ports:
-      - "${HOST_PORT:-8080}:5000"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+WORKDIR /app
 
-    # ---------- Безопасность и ограничения ----------
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    ulimits:
-      nofile:
-        soft: 1048576
-        hard: 1048576
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 128M
-        reservations:
-          cpus: "0.25"
-          memory: 64M
+# Устанавливаем только то, что нужно для сборки
+RUN pip install --upgrade pip
+COPY app/requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-  redis:
-    image: redis:7.2-alpine          # зафиксированная версия
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 3s
-      timeout: 2s
-      retries: 10
-    restart: unless-stopped
+# ========== Stage 2: Final ==========
+FROM python:3.11.9-slim
 
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    ports:
-      - "8081:8081"
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+# Создаём непривилегированного пользователя
+RUN adduser --disabled-password --gecos '' appuser
 
-volumes:
-  redis_data:
+WORKDIR /app
+
+# Копируем только необходимые файлы
+COPY --from=builder /root/.local /home/appuser/.local
+COPY app/app.py .
+
+# Делаем бинарники доступными
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Порт и переменные
+EXPOSE 5000
+ENV FLASK_APP=app.py \
+    FLASK_RUN_HOST=0.0.0.0 \
+    FLASK_RUN_PORT=5000
+
+# Переключаемся на непривилегированного пользователя
+USER appuser
+
+# Healthcheck (Flask должен отвечать)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -qO- http://localhost:5000/health || exit 1
+
+CMD ["flask", "run"]
