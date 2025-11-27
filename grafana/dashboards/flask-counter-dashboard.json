@@ -1,0 +1,57 @@
+{
+  "title": "Flask Counter App + Redis + Containers",
+  "uid": "flask-counter",
+  "version": 1,
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Requests Total",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum(app_requests_total)", "legendFormat": "total" }],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "type": "stat",
+      "title": "Errors Total",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "sum(app_errors_total)", "legendFormat": "errors" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Latency p95 (сек)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(app_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95" }],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "RPS",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [{ "expr": "rate(app_requests_total[1m])", "legendFormat": "RPS" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis Memory (MB)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "targets": [{ "expr": "redis_memory_used_bytes / 1024 / 1024", "legendFormat": "used MB" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container CPU %",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "targets": [{ "expr": "rate(container_cpu_usage_seconds_total{name=~\"web.*\"}[5m]) * 100", "legendFormat": "web CPU %" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis Connected Clients",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "targets": [{ "expr": "redis_connected_clients", "legendFormat": "clients" }]
+    }
+  ],
+  "templating": { "list": [] },
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["flask", "redis", "practice"]
+}
